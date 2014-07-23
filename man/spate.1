@@ -1,0 +1,238 @@
+.\" Manpage for spate.
+.\" Contact eddybliznuk@gmail.com to correct errors or typos.
+.TH man 8 "20 July 2014" "1.0.0" "spate man page"
+.SH NAME
+spate \- HTTP performance testing tool
+.SH SYNOPSIS
+spate -w2 -c1000 -r1000000 -t 192.168.1.100:8080/1k.html 
+.SH DESCRIPTION
+Spate is another tool that creates of HTTP connections with a server, sends lots or requests and collects some statistics.
+The main features that distinguish spate from other popular HTTP testing tools (like httperf, ab, etc) are:
+.nf
+.RS
+- high performance
+- good scalability on multicore systems, an ability to set affinity per worker thread
+- support for many simultaneous connections (hundreds of thousands and more)
+- an ability to use multiple local interfaces and IP addresses
+- step-by-step load increase on start
+- periodic statistic sampling with configurable period
+.RE
+.fi 
+.PP
+Spate can be configured via configuration file and/or via command line options.
+In case the same parameter is set up in the configuration file and in the command line the command line definition prevails.
+Some options can be used in command line only, some - in configuration file only.
+.PP
+User can start test by launching spate executable file from the command line. The test finishes in the following cases:
+.nf
+.RS
+1) All requests are sent and responses for all requests are received.
+2) All requests are sent, not all responses are received but worker cleanup timeout has expired.
+3) User pressed Ctrl-C
+.RE
+.fi 
+ 
+ Upon finish spate outputs on the screen the following test summary statistics:
+.nf
+.RS
+Test time (s)                  : 30.582372
+Sockets opened                 : 1000
+Epoll errors                   : 0
+Socket errors                  : 0
+Socket hangups                 : 0
+Bytes sent                     : 67000000
+Bytes received                 : 1262000000
+Requests sent                  : 1000000
+Responses received             : 1000000
+Requests per second            : 32575
+Bytes sent per second          : 2182569
+Bytes received per second      : 41128425
+.RE
+.fi 
+.PP
+ The last three summary statistics parameters are calculated only during the stable period, when step-by-step load increase is finished or it was not used at all. 
+.PP
+ In the statistics sample file every line represents a sample. The line consists of the following values:
+.nf
+.RS
+ 1) Time elapsed from the beginning of the test in microseconds.
+ 2) Number of currently open sockets
+ 3) Epoll errors number
+ 4) Socket errors number
+ 5) Socket hangups number
+ 6) Bytes sent from the beginning of the test
+ 7) Bytes received from the beginning of the test
+ 8) Requests sent from the beginning of the test
+ 9) Responses received from the beginning of the test
+ 10) Requests per second rate (average)
+ 11) Bytes sent per second rate (average)
+ 12) Bytes received per second rate (average)
+.RE
+.fi
+.SH OPTIONS
+
+There are few configuration options that can be used in the command line only:
+.TP
+.BR \-h,\-\-help\fR
+Show help on command line options.
+.TP
+.BR \-o,\-\-config\fR
+Path to configuration file. Default value : /etc/spate.cgf
+.TP
+.BR \-t,\-\-targer\fR
+Server URL in standard HTTP URL format : [http://]host[:port]/[path]. See also \fBTuple\fR parameter below. 
+.TP
+.BR \-V,\-\-version\fR
+Show product version.
+.PP
+The list of other configuration options is placed below in alphabetic order. It is based on the option names used in the configuration file.
+The corresponding command line options are shown in parenthesis if they are available.
+
+.TP
+.BR Connections=\fINUMBER\fB\ (\-c,\-\-conn)\fR
+The number of TCP connections established with the server. The connections are distributed between workers as evenly as possible. For example if you defined 3 workers and 10 connections, the first worker will establish 4 connections and two others 2 connections each. 
+Default value : 1 
+.TP
+.BR Delay=\fINUMBER\fB\ (\-d,\-\-delay)\fR
+Minimal number of milliseconds that should pass from reception of a reply to sending the next requests in a connection. If the Delay value is zero the request is sent as soon as possible.
+Default value : 0.
+.TP
+.BR EpollTimeout=\fINUMBER\fR
+.TP
+.BR EpollMaxEvents=\fINUMBER\fR
+An advanced user can define epoll parameters that can influence performance in some cases.
+It is not recommended to change these parameters.
+Default values : epoll timeout - 10 (milliseconds), epoll max events - 1000.
+.TP
+.BR ParseEveryResp=\fINUMBER\fR
+By default we assume that the server always sends the same responses to the same requests
+Therefore we parse the response just once per connection. In case the server sends dynamic replies
+they differ by size. In this case we have to parse every response.
+The valid values of this parameters are 0 (parse only the first response at a connection) and
+1 (parse every response).
+Default value : 0, only 0 and 1 values are valid. 
+.TP
+.BR ReqBodySize=\fINUMBER\fB\ (\-r=b,\-\-reg-body)\fR
+Size of request HTTP body in bytes. The body will be filled with 'A' character.
+Default value : 0
+.TP
+.BR ReqMethod=\fINUMBER\fR
+HTTP method used in requests. The following methods are supported: GET, POST, PUT, HEAD. 
+Default value : GET
+.TP 
+.BR ReqPerConnection=\fINUMBER\fR
+Number of requests to be sent via a single TCP connection. After this number is reached the connection is closed and a new connection is established.
+If it is zero - spate opens all connections on start and never closes them unless an error occurs.
+Default value : 0.
+.TP
+.BR Requests=\fINUMBER\fB\ (\-r,\-\-requests)\fR
+The number of HTTP request to be sent during the test. The requests are distributed between all connections as evenly as possible. 
+Default value : 1, maximum value is limited only by the size of 64-bit integer.
+.TP
+.BR RespBufferSize=\fINUMBER\fR
+Size of the memory buffer to which spate places data from the socket during the read. 
+If you define small buffer - the number of read() system calls increases, if the buffer is larger spate consumes more RAM. 
+Default value : 10k
+.TP
+.BR SampleFilePath=\fIPATH\fR
+Path to the csv file where the statistics samples are saved.
+Default value = spate-stat.txt
+.TP
+.BR SamplePeriod=\fINUMBER\fR
+Spate creates statistics samples periodically and saves them at a csv file. SamplePeriod defines period of sampling in milliseconds. The minimal value is limited by 100 ms
+however it is not recommended to set this value below 1 second. If SamplePeriod is zero no samples are saved.
+Default value : 1000 (1 second), minimum value : 100.
+.TP
+.BR Steps=\fITIME,NUMBER\fB\ (\-s,\-\-steps)\fR
+The Steps parameter enables user to increase load step by step. The value of this parameter consists of two numbers divided by a colon.
+The first number defines the duration of one step in seconds, the second one  - the number of steps. 
+Spate tries to distribute the connection number defined by the Connections parameter among the steps as evenly as possible. 
+If Steps value is empty or not defined spate establishes all connection upon start.
+Default value : empty
+.TP
+.BR Tuple=\fIP,URL\fR
+The Tuple parameter describes connections from spate and the server. IP represents the local interface from which connection to the server
+is established. It should be an existing local IP address. URL is URL of the remote server in standard HTTP notation : [http://]host[:port]/[path].
+Spate will try to resolve the host name upon start using standard Linux DNS settings. Multiple Tuple parameters are allowed. 
+The tuples are divided among workers as evenly as possible. The tuples assigned to a single worker are divided among connections.
+Default value : empty
+.TP
+.BR VerboseLevel=\fINUMBER,NUMBER\fB\ (\-v,\-\-verbose)\fR
+Currently only levels 0 and 1 are supported. If the verbose level is 1 then spate prints a list of all parameters upon the start.    
+Approximately every second spate also informs the user about time elapsed and the number of requests sent.
+Default value : 0
+.TP
+.BR WorkerAffinity=\fIBITMASK_SET\fR
+An advanced user can assign affinity mask to every worker thread. The value of WorkerAffinity parameter
+is a space-separated list of core bit masks per worker. If the number of such bit masks is smaller than the
+number of the workers the rest of the workers will be launched without affinity. The bit mask is represented
+by '0' and '1' characters, all other characters are just ignored. The rightmost character in the mask 
+represents the core #0. For example, if you want to bind the first worker to the core #1 and the second 
+one to the core #2 the parameter should be defined as follows: \fBWorkerAffinity\fR = 0010 0100.
+If it is empty or not defined no affinity is assigned to the workers. 
+Default value = empty
+.TP
+.BR WorkerCleanupTimeout=\fINUMBER\fR
+When a worker has sent all the requests planned it wait for some time while all the server
+responses arrive. You can define timeout for this waiting period (in seconds). When it is expired, the worker
+thread is closed even though not all responses are received.
+Default value : 10
+.TP
+.BR Workers=\fINUMBER\fB\ (\-w,\-\-workers)\fR
+The number of worker threads. It is recommended to set up this parameter equal to the number of CPU cores for better performance. You also can use \fBWorkerAffinity\fR parameter to bind worker threads to particular cores.
+Default value : 1, maximum value : 255.
+
+.SH EXAMPLES
+In all examples we assume that spate is launched without command line options. It takes the configuration from the default configuration file (/etc/spate.cfg).
+We assume also that host on which spate is installed has at least 2 ethernet interfaces connected to the server. The server URL is 'www.server.com:80/test.html'.
+.PP
+\fBExample 1. Run 1000000 GET requests on 1000 connections, increase connection number on start every second within 10 seconds.\fR 
+.PP
+Configuration:
+.nf
+.RS
+Tuple = 192.168.1.1, www.server.com:80/test.html
+Connections = 1000
+Requests = 100000
+Step = 1,10
+.RE
+.fi 
+.PP
+\fBExample 2.  Similar to Example 1 but run two worker treads on dedicated CPU cores.\fR 
+.PP
+In this example we will bind 2 worker threads to cores 1 and 2 assuming that core 0 will be using for serving NIC interrupts.
+.PP 
+Configuration:
+.nf
+.RS
+Tuple = 192.168.1.1, www.server.com:80/test.html
+Connections = 1000
+Requests = 100000
+Step = 1,10
+WorkerAffinity = 0010 0100 
+Workers = 2
+.RE
+.fi 
+.PP
+\fBExample 3.  Run 10000000 POST requests with 1k body on 100000 connection.\fR 
+.PP
+In this example we must use at least two different local IP addresses once the number of ports for a single IP is limited by 64k.
+We will define two tuples with different local IP-s. These IP-s must be assigned to Linux network interfaces (or on the same interface) prior to the test.  
+.PP 
+Configuration:
+.nf
+.RS
+Tuple = 192.168.1.1, www.server.com:80/test.html
+Tuple = 192.168.1.2, www.server.com:80/test.html
+Connections = 100000
+Requests = 1000000
+ReqBodySize = 1024
+ReqMethod = POST
+
+.RE
+.fi 
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Edward BLizniuk (Ed Blake) (eddybliznuk@gmail.com)
+
