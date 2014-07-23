@@ -69,11 +69,11 @@ am__installdirs = "$(DESTDIR)$(man1dir)"
 NROFF = nroff
 MANS = $(man_MANS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /root/spate/missing --run aclocal-1.11
-AMTAR = ${SHELL} /root/spate/missing --run tar
-AUTOCONF = ${SHELL} /root/spate/missing --run autoconf
-AUTOHEADER = ${SHELL} /root/spate/missing --run autoheader
-AUTOMAKE = ${SHELL} /root/spate/missing --run automake-1.11
+ACLOCAL = ${SHELL} /root/spate-tool/trunk/missing --run aclocal-1.11
+AMTAR = ${SHELL} /root/spate-tool/trunk/missing --run tar
+AUTOCONF = ${SHELL} /root/spate-tool/trunk/missing --run autoconf
+AUTOHEADER = ${SHELL} /root/spate-tool/trunk/missing --run autoheader
+AUTOMAKE = ${SHELL} /root/spate-tool/trunk/missing --run automake-1.11
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -98,7 +98,7 @@ LDFLAGS =
 LIBOBJS = 
 LIBS = -lpthread 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /root/spate/missing --run makeinfo
+MAKEINFO = ${SHELL} /root/spate-tool/trunk/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 PACKAGE = spate
@@ -112,10 +112,10 @@ SET_MAKE =
 SHELL = /bin/sh
 STRIP = 
 VERSION = 1.0.0
-abs_builddir = /root/spate/man
-abs_srcdir = /root/spate/man
-abs_top_builddir = /root/spate
-abs_top_srcdir = /root/spate
+abs_builddir = /root/spate-tool/trunk/man
+abs_srcdir = /root/spate-tool/trunk/man
+abs_top_builddir = /root/spate-tool/trunk
+abs_top_srcdir = /root/spate-tool/trunk
 ac_ct_CC = gcc
 am__include = include
 am__leading_dot = .
@@ -134,7 +134,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /root/spate/install-sh
+install_sh = ${SHELL} /root/spate-tool/trunk/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -167,9 +167,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign man/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu man/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign man/Makefile
+	  $(AUTOMAKE) --gnu man/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

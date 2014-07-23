@@ -27,9 +27,11 @@
 
 #ifdef _DEBUG
 	#define LOG_ERR(...) { log_lock();  fprintf(stderr, "%s Error at %s() %s:%d ", utils_get_current_time(), __func__, __FILE__, __LINE__);  fprintf(stderr, __VA_ARGS__);  log_unlock(); }
+	#define LOG_WARN(...) { log_lock();  fprintf(stderr, "%s Warning at %s() %s:%d ", utils_get_current_time(), __func__, __FILE__, __LINE__);  fprintf(stderr, __VA_ARGS__);  log_unlock(); }
 	#define LOG_DEBUG(...) { log_lock();  fprintf(stdout, "%s Debug at %s() %s:%d ", utils_get_current_time(), __func__, __FILE__, __LINE__);  fprintf(stdout, __VA_ARGS__);  log_unlock(); }
 #else
 	#define LOG_ERR(...) { log_lock();  fprintf(stderr, "ERROR ");  fprintf(stderr, __VA_ARGS__);  log_unlock(); }
+	#define LOG_WARN(...) { log_lock();  fprintf(stderr, "WARNING ");  fprintf(stderr, __VA_ARGS__);  log_unlock(); }
 	#define LOG_DEBUG(...)
 #endif
 

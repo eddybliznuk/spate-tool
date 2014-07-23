@@ -118,11 +118,11 @@ static Error_t print_sample()
 		return ERR_CANT_OPEN_FILE;
 	}
 
-	fprintf(f, "%lu, ", g_stat.progress_time);
+	fprintf(f, "%lu", g_stat.progress_time);
 
 	for (int i=0; i<COUNTER_COUNT; i++)
 	{
-		fprintf(f, "%lu", g_stat.total.c[i]);
+		fprintf(f, ", %lu", g_stat.total.c[i]);
 	}
 
 	for (int i=0; i<RATE_COUNTER_COUNT; i++)
