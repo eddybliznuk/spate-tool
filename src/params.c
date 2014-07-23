@@ -376,6 +376,10 @@ static Error_t parse_config(uint8_t default_file)
 						break;
 					}
 				}
+
+				if (param_idx == CONFIG_UNKNOWN)
+					LOG_WARN("Unknown parameter [%s] in the configuration file - ignored.\n", param_name);
+
 				state = CONFIG_PARAM_VAL;
 				val = &param_val[0][0];
 				cur_val_index = 0;

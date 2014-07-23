@@ -306,9 +306,9 @@ static void receive_reply(Worker_t* w, struct epoll_event *event)
 				++w->stat.c[RESP_RCVD];
 				sh->resp_rcvd_size = 0;
 
-				if (w->state == WORKER_STATE_CLEANUP)
+				if (w->state == WORKER_STATE_CLEANUP ||
+				   (w->req_per_conn > 0 && sh->requests >= w->req_per_conn))
 				{
-					/* In cleanup state we don't send new requests - just close the socket */
 					close_sock (w, event);
 					break;
 				}
@@ -324,10 +324,6 @@ static void receive_reply(Worker_t* w, struct epoll_event *event)
 					}
 
 					add_to_wait_list(w, sh);
-				}
-				else if (w->req_per_conn > 0 && sh->requests >= w->req_per_conn)
-				{
-					close_sock (w, event);
 				}
 				else
 				{
