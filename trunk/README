@@ -1,0 +1,56 @@
+BRIEF SPATE HISTORY AND HIGHLIGHTS
+----------------------------------
+
+I wrote spate when I performed a research dedicated to high performance web servers. I tried to find a tool for testing 
+such servers in compact virtual multicore environment and was not satisfied with existing open source solutions I could
+find on the Net. So I decided to write my own tool. 
+
+Spate highlights:
+
+- high performance
+- flexible worker/core configuration including worker thread affinity
+- an ability to use multiple local IP addresses and network interfaces
+- many simultaneous connections
+- useful (for my purposes) statistics reports
+
+
+BUILDING SPATE
+--------------
+
+The build process is quite standard. In 'spate' directory run:
+
+./configure
+./make
+./make install
+
+The following files will be installed:
+
+	- spate executable (will be installed by default to /usr/local/bin/)
+	- manual pages (try 'man spate')
+	
+When configuring the project you can add the following C compiler flags:
+	
+_TRACE - when it is defined spate will print on the screen additional information.
+_DEBUG - when it is defined even more information is printed.
+_UTEST - unit tests will be compiled. In this case spate executable will run unit tests and exit. 
+         Currently the number of unit tests is limited.
+
+
+USING SPATE
+-----------
+
+Spate has a detailed manual page that explains spate configuration and contains examples of spate usage.
+Everybody is welcome to enhance it.
+
+The spate-conf.template in the main spate directory is a template that can be used as a base for 
+the spate configuration file. The default path to such file is /var/spate.cfg. So you can just
+
+	mv spate-conf.template /var/spate.cfg
+
+and star editing it. If you want to place the configuration file to the other place, use -o command line parameter
+to specify the path.
+
+
+
+Yours, 
+Edward Blizniuk (Ed Blake)

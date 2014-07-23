@@ -1,0 +1,8 @@
+The following additions and improvements still could be done for spate:
+
+1) Support for HTTPS 
+2) Support for chunked replies
+3) Analysis of HTTP reply code (2xx, 3xx, 4xx, 5xx)
+4) Support for IPv6
+
+
