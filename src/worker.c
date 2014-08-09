@@ -147,20 +147,17 @@ static void close_sock(Worker_t* w, struct epoll_event* event)
 {
 	Socket_t* sh = (Socket_t*)event->data.ptr;
 
-#ifdef _DEBUG
-	LOG_DEBUG("WORKER_%d : Socket [%d] closed\n", w->worker_id, sh->sock_fd);
-#endif
+	LOG_DEBUG("WORKER_%d : Socket [%d] closed %lx\n", w->worker_id, sh->sock_fd, sh);
 
-	event->events = 0;
-
-	epoll_ctl(w->epoll_fd, EPOLL_CTL_DEL, sh->sock_fd, event);
-
-	close (sh->sock_fd);
-
-	if (event->data.ptr != NULL)
-		free(event->data.ptr);
-
+	event->events 	= 0;
 	event->data.ptr = NULL;
+
+	if (sh != NULL)
+	{
+		epoll_ctl(w->epoll_fd, EPOLL_CTL_DEL, sh->sock_fd, event);
+		close (sh->sock_fd);
+		free(sh);
+	}
 
 	if (--w->sockets == 0 && w->state == WORKER_STATE_CLEANUP)
 		/* No more sockets open - stop the main loop now */
@@ -285,7 +282,9 @@ static void receive_reply(Worker_t* w, struct epoll_event *event)
 	    }
         else if (read_size == 0)
         {
+        	++w->stat.c[SOCK_HUP];
         	close_sock (w, event);
+        	break;
         }
         else
         {
@@ -590,7 +589,7 @@ void*  worker_do_work (void* param)
 					w->stat.c[SOCK_ERR]++;
 
 				if (events[i].events & EPOLLHUP)
-					w->stat.c[SOCK_ERR]++;
+					w->stat.c[SOCK_HUP]++;
 
 				close_sock (w, &events[i]);
 				continue;
