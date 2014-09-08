@@ -58,7 +58,7 @@ typedef enum AffinitySate_
 typedef struct Parser_
 {
 	uint32_t 	content_len;
-	uint32_t	reply_len;
+	uint32_t	msg_len;
 	char*		hn_pos;
 	char*		hv_pos;
 	uint8_t		chunked;

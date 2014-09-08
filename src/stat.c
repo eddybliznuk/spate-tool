@@ -32,13 +32,14 @@ static GlobalStat_t g_stat;
 
 static char* counter_name[] = {
 	"Sockets opened",
+	"Sockets closed",
 	"Epoll errors",
 	"Socket errors",
 	"Socket hangups",
 	"Bytes sent",
 	"Bytes received",
-	"Requests sent",
-	"Responses received"
+	"Messages sent",
+	"Messages received"
 };
 
 static char* rate_counter_name[] = {
@@ -81,7 +82,7 @@ static void summarize()
 	}
 
 	// Calculate rate statistics for the sample period
-	g_stat.rate_period[REQ_PER_SEC] 		= (uint64_t)((double)(g_stat.total.c[REQ_SENT]-prev_total.c[REQ_SENT])/(period_time/1000000.0));
+	g_stat.rate_period[REQ_PER_SEC] 		= (uint64_t)((double)(g_stat.total.c[MSG_SENT]-prev_total.c[MSG_SENT])/(period_time/1000000.0));
 	g_stat.rate_period[BYTES_SENT_PER_SEC]	= (uint64_t)((double)(g_stat.total.c[BYTES_SENT]-prev_total.c[BYTES_SENT])/(period_time/1000000.0));
 	g_stat.rate_period[BYTES_RCVD_PER_SEC]	= (uint64_t)((double)(g_stat.total.c[BYTES_RCVD]-prev_total.c[BYTES_RCVD])/(period_time/1000000.0));
 
@@ -210,7 +211,7 @@ Error_t stat_get_sample()
 
 void stat_print_short_report()
 {
-	fprintf(stdout, "%10.2f second(s) <=> %lu requests sent\n", (double)(g_stat.progress_time/1000000.0), g_stat.total.c[REQ_SENT]);
+	fprintf(stdout, "%10.2f second(s) <=> %lu messages\n", (double)(g_stat.progress_time/1000000.0), g_stat.total.c[MSG_SENT]);
 }
 
 void stat_refresh_worker_stat(Stat_t* ws, uint16_t	wid, uint8_t worker_is_ready)

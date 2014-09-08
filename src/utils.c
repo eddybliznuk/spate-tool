@@ -28,6 +28,7 @@
 #include <string.h>
 #include <time.h>
 #include <arpa/inet.h>
+#include <stdlib.h>
 
 
 void utils_timeval_inc (struct timeval* tv, uint32_t inc)
@@ -61,6 +62,8 @@ Error_t utils_host_to_sockaddr (char* host, struct sockaddr* addr)
 
 	if(addr != NULL)
 		memcpy( addr, a->ai_addr, a->ai_addrlen);
+
+	freeaddrinfo(a);
 
 	return ERR_OK;
 }
@@ -129,4 +132,103 @@ char* utils_get_http_method_name (HttpMethod_e method)
 
 	return "UNKNOWN";
 }
+
+static unsigned int hash(void* val, uint32_t size)
+{
+	unsigned int   	hash = 0;
+	unsigned char*	cur = (unsigned char*)&val;
+	int  			i;
+
+	for (i=0; i<sizeof(val); ++i)
+		hash += (hash^cur[i]) << (i*8);
+
+	return (hash % size);
+}
+
+Error_t utils_hash_init(Hash_t* h, uint32_t size)
+{
+	h->size 	= size;
+	h->bucket 	= (HashEntry_t**)malloc(sizeof(HashEntry_t*)*size);
+
+	if(h->bucket == NULL)
+		return ERR_MEMORY_ALLOC;
+
+	memset(h->bucket, 0, sizeof(HashEntry_t*)*size);
+
+	return ERR_OK;
+}
+
+//static int ccc =0;
+
+Error_t utils_hash_add(Hash_t* h, void* ptr)
+{
+	unsigned int idx = hash(ptr, h->size);
+	HashEntry_t* he = malloc(sizeof(HashEntry_t));
+
+	if(he == NULL)
+		return ERR_MEMORY_ALLOC;
+
+	he->ptr = ptr;
+	he->next = h->bucket[idx];
+	h->bucket[idx] = he;
+
+	//printf("Hash Added %d\n", ++ccc);
+
+	return ERR_OK;
+}
+
+void utils_hash_del(Hash_t* h, void* ptr)
+{
+	unsigned int idx = hash(ptr, h->size);
+	HashEntry_t** he = &h->bucket[idx];
+
+	while(*he != NULL)
+	{
+		if((*he)->ptr == ptr)
+		{
+			HashEntry_t* tmp = *he;
+			*he = (*he)->next;
+			free(tmp);
+
+			//printf("Hash Deleted %d\n", --ccc);
+			return;
+		}
+
+		he = &((*he)->next);
+	}
+}
+
+void* utils_hash_enum(Hash_t* h, uint8_t start)
+{
+	static uint32_t cur_bucket = 0;
+	static HashEntry_t*	cur_entry = NULL;
+	uint32_t i;
+
+	if(start == 1)
+	{
+		cur_bucket = 0;
+		cur_entry = NULL;
+	}
+
+	if(cur_entry != NULL)
+	{
+		void* ptr = cur_entry->ptr;
+		cur_entry = cur_entry->next;
+		return ptr;
+	}
+
+	for(i = cur_bucket; i<h->size; i++)
+	{
+		if(h->bucket[i] != NULL)
+		{
+			cur_entry = h->bucket[i]->next;
+			cur_bucket = i+1;
+			return h->bucket[i]->ptr;
+		}
+	}
+
+	return NULL;
+}
+
+
 

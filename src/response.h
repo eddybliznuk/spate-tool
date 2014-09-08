@@ -18,40 +18,21 @@
 
 */
 
-#ifndef _DISPATCHER_H_
-#define _DISPATCHER_H_
+#ifndef _RESPONSE_H_
+#define _RESPONSE_H_
 
-#include <pthread.h>
+#include "general_defs.h"
 
-#include "worker.h"
-#include "listener.h"
+#define MAX_RESP_HEADER_SIZE	1024
+#define MAX_HTTP_PARAM_LEN			128
 
-typedef enum ThreadType_
-{
-	THREAD_TYPE_LISTENER,
-	THREAD_TYPE_WORKER,
-	THREAD_TYPE_COUNT
-
-} ThreadType_e;
-
-typedef struct Dispatcher_
-{
-	/* Pointer to the array of Worker_t structures */
-	Worker_t*			workers;
-
-	/* Pointer to the array of Listener_t structures */
-	Listener_t*			listeners;
-
-	uint16_t			thread_count[THREAD_TYPE_COUNT];
-	uint16_t			cur_affinity; /* for distributing affinity from the list among listeners and workers */
-
-	pthread_mutex_t		mutex;
-
-} Dispatcher_t ;
+#define RESP_STATUS_LINE		"HTTP 1.1 200 OK\r\n"
+#define RESP_CONTENT_TYPE		"Content-Type: text/xml; charset=utf-8\r\n"
+/*
+ * Allocates memory for HTTP response and fills it up with HTTP headers and body.
+ * If body is defined it is filled with A character.
+ */
+Error_t response_create_response(char** buff);
 
 
-Error_t dispatcher_init_and_start_workers ();
-void dispatcher_on_finish(ThreadType_e thread_type);
-void dispatcher_close_all();
-
-#endif /* _DISPATCHER_H_ */
+#endif /* _RESPONSE_H_ */

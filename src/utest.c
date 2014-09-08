@@ -20,6 +20,7 @@
 
 #include "utils.h"
 #include "parser.h"
+#include "fifo_ring.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -98,8 +99,32 @@ int test_eggbasket()
 {
 	int err = 0;
 	printf("Testing egg basket ");
+	int total = 0;
 
 	EggBasket_t eb;
+
+	printf(".");
+
+	utils_eggbasket_init(&eb, 333, 10);
+
+	for(int i=0; i<10; ++i)
+	{
+		uint32_t eggs = utils_eggbasket_get(&eb);
+		if(i<3 && eggs != 34)
+		{
+			++err;
+			break;
+		}
+		if(i>=3 && eggs != 33)
+		{
+			++err;
+			break;
+		}
+		total += eggs;
+	}
+
+	if(total!=333)
+		++err;
 
 	printf(".");
 
@@ -274,6 +299,173 @@ int test_parse_url()
 	return err;
 }
 
+int test_sock_q()
+{
+	int err = 0;
+	printf("Testing fifo ring ");
+
+	FifoRing_t fr;
+	Error_t rc;
+	int* p;
+	int data[] = {1, 2, 3, 4};
+
+	printf(".");
+
+	fifo_ring_init(&fr, 3);
+
+	rc = fifo_ring_add (&fr, &data[0]);
+	if(rc != ERR_OK)
+			++err;
+
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 1))
+			++err;
+
+	printf(".");
+
+	fifo_ring_init(&fr, 3);
+
+	rc = fifo_ring_add (&fr, &data[0]);
+	if(rc != ERR_OK)
+			++err;
+	rc = fifo_ring_add (&fr, &data[1]);
+	if(rc != ERR_OK)
+			++err;
+	rc = fifo_ring_add (&fr, &data[2]);
+	if(rc != ERR_OK)
+			++err;
+	rc = fifo_ring_add (&fr, &data[3]);
+	if(rc != ERR_OUT_OF_BOUNDS)
+			++err;
+
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 1))
+			++err;
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 2))
+			++err;
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 3))
+			++err;
+	p = (int*)fifo_ring_get (&fr);
+	if(p != NULL)
+			++err;
+
+	printf(".");
+
+	fifo_ring_init(&fr, 3);
+
+	rc = fifo_ring_add (&fr, &data[0]);
+	if(rc != ERR_OK)
+			++err;
+	rc = fifo_ring_add (&fr, &data[1]);
+	if(rc != ERR_OK)
+			++err;
+
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 1))
+			++err;
+
+	rc = fifo_ring_add (&fr, &data[2]);
+	if(rc != ERR_OK)
+			++err;
+	rc = fifo_ring_add (&fr, &data[3]);
+	if(rc != ERR_OK)
+			++err;
+
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 2))
+			++err;
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 3))
+			++err;
+
+	rc = fifo_ring_add (&fr, &data[0]);
+	if(rc != ERR_OK)
+			++err;
+	rc = fifo_ring_add (&fr, &data[1]);
+	if(rc != ERR_OK)
+			++err;
+
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 4))
+			++err;
+
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 1))
+			++err;
+
+	p = (int*)fifo_ring_get (&fr);
+	if(p == NULL || (*p != 2))
+			++err;
+
+	printf(" => %d errors\n", err);
+
+	return err;
+}
+
+int test_hash()
+{
+	int err = 0;
+	printf("Testing hash ");
+
+	Hash_t h;
+	Error_t rc;
+	long i;
+	void* val;
+	uint8_t sum = 0, check[10];
+
+	printf(".");
+
+	rc = utils_hash_init(&h, 10);
+	if(rc != ERR_OK)
+			++err;
+
+	for(i=1; i<10; i++)
+	{
+		rc = utils_hash_add(&h, (void*)i);
+
+		if(rc != ERR_OK)
+			++err;
+
+		check[i] = 1;
+	}
+
+	utils_hash_del(&h, (void*)2);
+	check[2] = 0;
+	utils_hash_del(&h, (void*)3);
+	check[3] = 0;
+	utils_hash_del(&h, (void*)5);
+	check[5] = 0;
+	utils_hash_del(&h, (void*)6);
+	check[6] = 0;
+	utils_hash_del(&h, (void*)7);
+	check[7] = 0;
+
+	val = utils_hash_enum(&h, 1);
+	check[(long)val] = 0;
+	val = utils_hash_enum(&h, 0);
+	check[(long)val] = 0;
+	val = utils_hash_enum(&h, 0);
+	check[(long)val] = 0;
+	val = utils_hash_enum(&h, 0);
+	check[(long)val] = 0;
+
+	val = utils_hash_enum(&h, 0);
+	if(val != NULL)
+		++err;
+
+	for(i=1; i<10; i++)
+		sum += check[i];
+
+	if(sum !=0)
+		++err;
+
+	printf(" => %d errors\n", err);
+
+	return err;
+}
+
 void utest_test_all()
 {
 	int err = 0;
@@ -282,6 +474,8 @@ void utest_test_all()
 	err += test_eggbasket();
 	err += test_parse_affinity();
 	err += test_parse_url();
+	err += test_sock_q();
+	err += test_hash();
 
 	if (err == 0)
 		printf ("Unit test PASSED\n");

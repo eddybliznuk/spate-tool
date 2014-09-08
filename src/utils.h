@@ -37,6 +37,22 @@ typedef struct EggBasket_
 
 } EggBasket_t;
 
+
+typedef struct HashEntry_
+{
+	void*				ptr;
+	struct HashEntry_*	next;
+
+} HashEntry_t;
+
+
+typedef struct Hash_
+{
+	HashEntry_t**	bucket;
+	uint32_t 		size;
+
+} Hash_t;
+
 /*
  * utils_timeval_inc() adds to timeval value 'inc' microseconds.
  */
@@ -73,5 +89,13 @@ uint32_t	utils_eggbasket_get (EggBasket_t* d);
 
 /* This function is NOT thread safe. */
 char* utils_get_http_method_name (HttpMethod_e method);
+
+
+/* Simple hash of poiters */
+Error_t utils_hash_init(Hash_t* h, uint32_t size);
+Error_t utils_hash_add(Hash_t* h, void* ptr);
+void utils_hash_del(Hash_t* h, void* ptr);
+void* utils_hash_enum(Hash_t* h, uint8_t start);
+
 
 #endif /* _UTILS_H_ */

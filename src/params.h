@@ -39,6 +39,13 @@ typedef enum ConfigState_
 } ConfigState_e;
 
 
+typedef enum SpateMode_
+{
+	SPATE_MODE_CLIENT = 0,
+	SPATE_MODE_SERVER
+
+} SpateMode_e;
+
 typedef struct ConfigParam_
 {
 	const char* name;
@@ -50,6 +57,8 @@ typedef enum ConfigParam__
 {
 	CONFIG_UNKNOWN,
 
+	CONFIG_MODE,
+	CONFIG_LISTENER,
 	CONFIG_TUPLE,
 	CONFIG_WORKERS,
 	CONFIG_CONNECTIONS,
@@ -59,7 +68,8 @@ typedef enum ConfigParam__
 	CONFIG_STEPS,
 	CONFIG_REQ_BODY_SIZE,
 	CONFIG_REQ_METHOD,
-	CONFIG_RESP_BUFFER_SIZE,
+	CONFIG_RESP_BODY_SIZE,
+	CONFIG_READ_BUFFER_SIZE,
 	CONFIG_VERBOSE,
 	CONFIG_SAMPLE_PERIOD,
 	CONFIG_SAMPLE_FILE_PATH,
@@ -67,7 +77,7 @@ typedef enum ConfigParam__
 	CONFIG_WORKER_CLEANUP_TIMEOUT,
 	CONFIG_EPOLL_TIMEOUT,
 	CONFIG_EPOLL_MAX_EVENTS,
-	CONFIG_PARSE_EVERY_REQ,
+	CONFIG_PARSE_EVERY_HTTP,
 
 	CONFIG_PARAM_COUNT
 
@@ -85,13 +95,16 @@ typedef struct Params_
 	uint16_t		stop_steps;  				/* TODO Implement step-by-step connection closing */
 	uint32_t		step_time;
 	uint32_t		req_size;
-	uint32_t		resp_buf_size;
+	uint32_t		resp_size;
+	uint32_t		read_buff_size;
 	uint32_t		worker_cleanup_timeout;
 	uint32_t		epoll_timeout;  			/* milliseconds */
 	uint32_t		epoll_max_events;
 	uint8_t			req_method;
-	uint8_t			parse_every_resp;
+	uint8_t			parse_every_http;
 	uint8_t			verbose;
+	uint8_t			mode;
+	uint32_t		accept_q_size;
 
 	char			sample_path[MAX_PARAM_STR_LEN];
 	char			config_path[MAX_PARAM_STR_LEN];
@@ -100,7 +113,10 @@ typedef struct Params_
 	TupleList_t*	tuple_list;
 	uint32_t		tuple_count;
 
-	unsigned long	affinity_list[MAX_WORKER_COUNT];  /* List of affinity CPU masks */
+	TupleList_t*	listener_list;
+	uint32_t		listener_count;
+
+	unsigned long	affinity_list[MAX_THREAD_COUNT];  /* List of affinity CPU masks */
 
 } Params_t;
 

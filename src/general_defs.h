@@ -29,9 +29,10 @@
 #define LOOP_GUARD 			1000
 #define MAX_PARAM_STR_LEN	1024
 #define IP_ADDR_STRING_LEN	64
-#define MAX_WORKER_COUNT	256
+#define MAX_THREAD_COUNT	256
+#define MAX_ACCEPTED_SOCKS	100   // For SPOOL interface only. Maximum number of sockets to be accepted by a single SPOOL call.
 
-extern char* version;
+extern const char* version;
 
 typedef enum Error_
 {
@@ -49,6 +50,7 @@ typedef enum Error_
 	ERR_CANT_RESOLVE_HOST,
 	ERR_INVALID_URL,
 	ERR_INVALID_CONFIG,
+	ERR_ACCEPT_FAILED,
 	ERR_GENERIC = 1000
 
 } Error_t;
@@ -76,7 +78,7 @@ typedef struct Tuple_
 {
 	struct sockaddr_in		local_addr;
 	struct sockaddr_in		remote_addr;
-	char*					req_buf;
+	char*					req_buff;
 	struct Tuple_*			next;
 
 	Url_t					url;

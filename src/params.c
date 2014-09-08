@@ -35,6 +35,8 @@ Params_t g_params = {0};
 /* First element - parameter name, second one - number of values divided by colon */
 static ConfigParam_t config_param[] = {
 	{"Unknown", 			0},
+	{"Mode", 				1},
+	{"Listener",			1},
 	{"Tuple", 				2},
 	{"Workers", 			1},
 	{"Connections",			1},
@@ -44,7 +46,8 @@ static ConfigParam_t config_param[] = {
 	{"Steps", 				2},
 	{"ReqBodySize",			1},
 	{"ReqMethod",			1},
-	{"RespBufferSize",		1},
+	{"RespBodySize",		1},
+	{"ReadBufferSize",		1},
 	{"VerboseLevel"	,		1},
 	{"SamplePeriod",		1},
 	{"SampleFilePath",		1},
@@ -52,7 +55,7 @@ static ConfigParam_t config_param[] = {
 	{"WorkerCleanupTimeout",1},
 	{"EpollTimeout",		1},
 	{"EpollMaxEvents",		1},
-	{"ParseEveryResp",		1}
+	{"ParseEveryHttp",		1}
 };
 
 static const char* option_string="c:w:s:r:t:d:o:p:vhV";
@@ -105,6 +108,7 @@ static void print_version()
 {
 	fprintf(stdout, "spate version %s\n", version);
 }
+
 
 static Error_t parse_steps(char* p)
 {
@@ -164,6 +168,37 @@ static char* strstrip(char *s)
     return s;
 }
 
+static Error_t add_listener (char* local)
+{
+	Error_t rc = ERR_OK;
+	Tuple_t*  t = malloc(sizeof(Tuple_t));
+
+	memset (t, 0, sizeof(Tuple_t));
+	local = strstrip(local);
+
+	Url_t url;
+
+	if((rc = parser_parse_url(local, &url)) != ERR_OK)
+	{
+		LOG_ERR("Configuration error: invalid listener address or port [%s]\n", local);
+		free(t);
+		return rc;
+	}
+
+	t->local_addr.sin_family = AF_INET;
+	t->local_addr.sin_addr.s_addr = 0;  // TODO use IP
+	t->local_addr.sin_port = htons(url.port);
+
+	TupleList_t* tl = malloc(sizeof(TupleList_t));
+
+	tl->t = t;
+	tl->next = g_params.listener_list;
+	g_params.listener_list = tl;
+	++g_params.listener_count;
+
+	return rc;
+}
+
 static Error_t add_tuple (char* local, char* remote)
 {
 	Error_t rc = ERR_OK;
@@ -176,28 +211,36 @@ static Error_t add_tuple (char* local, char* remote)
 	memset (t, 0, sizeof(Tuple_t));
 
 	if(local != NULL && (rc = utils_host_to_sockaddr (local, (struct sockaddr*)&t->local_addr)) != ERR_OK)
+	{
 		LOG_ERR("Configuration error: can't resolve local address [%s]\n", local);
+		goto add_tuple_err;
+	}
 
 	if((rc = parser_parse_url(remote, &t->url)) != ERR_OK)
+	{
 		LOG_ERR("Configuration error: invalid remote URL format [%s]\n", remote);
+		goto add_tuple_err;
+	}
 
 	if((rc = utils_host_to_sockaddr (t->url.host,  (struct sockaddr*)&t->remote_addr)) != ERR_OK)
+	{
 		LOG_ERR("Configuration error: can't resolve remote address [%s]\n", remote);
+		goto add_tuple_err;
+	}
 
 	t->remote_addr.sin_port = htons(t->url.port);
 
-	if(rc == ERR_OK)
-	{
-		TupleList_t* tl = malloc(sizeof(TupleList_t));
+	TupleList_t* tl = malloc(sizeof(TupleList_t));
 
-		tl->t = t;
-		tl->next = g_params.tuple_list;
-		g_params.tuple_list = tl;
-		++g_params.tuple_count;
-	}
-	else
-		free(t);
+	tl->t = t;
+	tl->next = g_params.tuple_list;
+	g_params.tuple_list = tl;
+	++g_params.tuple_count;
 
+	return rc;
+
+add_tuple_err:
+	free(t);
 	return rc;
 }
 
@@ -223,6 +266,13 @@ static Error_t assign_config_param (ConfigParam_e idx, char* val1, char* val2)
 
 	switch(idx)
 	{
+	case CONFIG_MODE:
+		if(strstr(val1, "server"))
+			g_params.mode = SPATE_MODE_SERVER;
+		break;
+	case CONFIG_LISTENER:
+		rc = add_listener (val1);
+		break;
 	case CONFIG_TUPLE:
 		/* Command line '-t' param prevails over 'Tuple' param */
 		if (strlen(g_params.target) == 0)
@@ -260,8 +310,11 @@ static Error_t assign_config_param (ConfigParam_e idx, char* val1, char* val2)
 			return ERR_INVALID_CONFIG;
 		}
 		break;
-	case CONFIG_RESP_BUFFER_SIZE:
-		g_params.resp_buf_size = atoi(val1);
+	case CONFIG_RESP_BODY_SIZE:
+		g_params.resp_size = atoi(val1);
+		break;
+	case CONFIG_READ_BUFFER_SIZE:
+		g_params.read_buff_size = atoi(val1);
 		break;
 	case CONFIG_VERBOSE:
 		g_params.verbose = atoi(val1);
@@ -273,7 +326,7 @@ static Error_t assign_config_param (ConfigParam_e idx, char* val1, char* val2)
 		strncpy(g_params.sample_path, strstrip(val1), sizeof(g_params.sample_path));
 		break;
 	case CONFIG_AFFINITY:
-		rc = parser_parse_affinity(val1, g_params.affinity_list, MAX_WORKER_COUNT);
+		rc = parser_parse_affinity(val1, g_params.affinity_list, MAX_THREAD_COUNT);
 		break;
 	case CONFIG_WORKER_CLEANUP_TIMEOUT:
 		g_params.worker_cleanup_timeout = atoi(val1)*1000000;
@@ -284,8 +337,8 @@ static Error_t assign_config_param (ConfigParam_e idx, char* val1, char* val2)
 	case CONFIG_EPOLL_MAX_EVENTS:
 		g_params.epoll_max_events = atoi(val1);
 		break;
-	case CONFIG_PARSE_EVERY_REQ:
-		g_params.parse_every_resp = atoi(val1);
+	case CONFIG_PARSE_EVERY_HTTP:
+		g_params.parse_every_http = atoi(val1);
 		break;
 	default:
 		// Unknown param - do nothing
@@ -432,17 +485,41 @@ static Error_t parse_config(uint8_t default_file)
 
 static Error_t verify_params()
 {
-	if (g_params.tuple_list == NULL)
+	/* Server/client mode specific params */
+	if(g_params.mode == SPATE_MODE_SERVER)
 	{
-		LOG_ERR("No remote targets specified. Please use '-t' command line option or define at least one tuple in the configuration file.\n");
-		return ERR_INVALID_CONFIG;
+		if (g_params.listener_count == 0)
+		{
+			LOG_ERR("No listeners specified in server mode.\n");
+			return ERR_INVALID_CONFIG;
+		}
+	}
+	else
+	{
+		if (g_params.tuple_list == NULL)
+		{
+			LOG_ERR("No remote targets specified. Please use '-t' command line option or define at least one tuple in the configuration file.\n");
+			return ERR_INVALID_CONFIG;
+		}
+
+		if (g_params.conn_count < g_params.worker_count)
+		{
+			LOG_ERR("Connection count can't be less then worker count\n");
+			return ERR_INVALID_CONFIG;
+		}
+
+		if (g_params.req_count < g_params.conn_count)
+		{
+			LOG_ERR("Request count can'y be less then connection count\n");
+			return ERR_INVALID_CONFIG;
+		}
 	}
 
 	if (g_params.worker_count == 0)
 		g_params.worker_count = 1;
 
-	if(g_params.resp_buf_size == 0)
-		g_params.resp_buf_size = (1024 * 10);
+	if(g_params.read_buff_size == 0)
+		g_params.read_buff_size = (1024 * 10);
 
 	if(g_params.start_steps == 0)
 		g_params.start_steps = 1;
@@ -453,27 +530,86 @@ static Error_t verify_params()
 		return ERR_INVALID_CONFIG;
 	}
 
-	if(g_params.worker_count > MAX_WORKER_COUNT)
+	if(g_params.worker_count > MAX_THREAD_COUNT)
 	{
-		LOG_ERR("Worker count exceeds maximum [%d]\n", MAX_WORKER_COUNT);
-		return ERR_INVALID_CONFIG;
-	}
-
-	if (g_params.conn_count < g_params.worker_count)
-	{
-		LOG_ERR("Connection count can'y be less then worker count\n");
-		return ERR_INVALID_CONFIG;
-	}
-
-	if (g_params.req_count < g_params.conn_count)
-	{
-		LOG_ERR("Request count can'y be less then connection count\n");
+		LOG_ERR("Worker count exceeds maximum [%d]\n", MAX_THREAD_COUNT);
 		return ERR_INVALID_CONFIG;
 	}
 
 	return ERR_OK;
 }
 
+static void print_config()
+{
+	if(g_params.mode == SPATE_MODE_SERVER)
+	{
+		printf ("Starting spate in SERVER mode with parameters:\n"
+			"listener count             = %u\n"
+			"worker count               = %u\n"
+			"connection count           = %u\n"
+			"request count              = %lu\n"
+			"delay (ms)                 = %u\n"
+			"req per connection         = %u\n"
+			"resp body size             = %u\n"
+			"read buffer size           = %u\n"
+			"verbose                    = %u\n"
+			"sample period (ms)         = %u\n"
+			"worker cleanup timeout (s) = %u\n"
+			"epoll timeout (ms)         = %u\n"
+			"epoll max events           = %u\n"
+			"parse every http           = %u\n\n",
+			g_params.listener_count,
+			g_params.worker_count,
+			g_params.conn_count,
+			g_params.req_count,
+			g_params.delay/1000,
+			g_params.req_per_conn,
+			g_params.resp_size,
+			g_params.read_buff_size,
+			g_params.verbose,
+			g_params.sample_period/1000,
+			g_params.worker_cleanup_timeout/1000000,
+			g_params.epoll_timeout,
+			g_params.epoll_max_events,
+			g_params.parse_every_http);
+	}
+	else
+	{
+		printf ("Starting spate in CLIENT mode with parameters:\n"
+			"worker count               = %u\n"
+			"connection count           = %u\n"
+			"request count              = %lu\n"
+			"delay (ms)                 = %u\n"
+			"req per connection         = %u\n"
+			"step_time (s)              = %u\n"
+			"start_steps                = %u\n"
+			"req body size              = %u\n"
+			"req method                 = %s\n"
+			"read buffer size           = %u\n"
+			"verbose                    = %u\n"
+			"sample period (ms)         = %u\n"
+			"worker cleanup timeout (s) = %u\n"
+			"epoll timeout (ms)         = %u\n"
+			"epoll max events           = %u\n"
+			"parse every http           = %u\n\n",
+			g_params.worker_count,
+			g_params.conn_count,
+			g_params.req_count,
+			g_params.delay/1000,
+			g_params.req_per_conn,
+			g_params.step_time/1000000,
+			g_params.start_steps,
+			g_params.req_size,
+			utils_get_http_method_name(g_params.req_method),
+			g_params.read_buff_size,
+			g_params.verbose,
+			g_params.sample_period/1000,
+			g_params.worker_cleanup_timeout/1000000,
+			g_params.epoll_timeout,
+			g_params.epoll_max_events,
+			g_params.parse_every_http);
+	}
+}
 /****************************************************************
  *
  *                   Interface Functions
@@ -483,6 +619,8 @@ static Error_t verify_params()
 void params_init ()
 {
 	memset(&g_params, 0, sizeof(Params_t));
+
+	g_params.mode 					= SPATE_MODE_CLIENT;
 
 	g_params.worker_count 			= 1;
 	g_params.conn_count 			= 1;
@@ -496,7 +634,7 @@ void params_init ()
 
 	g_params.req_size				= 0;
 	g_params.req_method				= HTTP_METHOD_GET;
-	g_params.resp_buf_size			= (1024 * 10);
+	g_params.read_buff_size			= (1024 * 10);
 	g_params.verbose				= 0;
 	g_params.sample_period			= 1000000;  /* 1 second */
 	strcpy (g_params.sample_path, "spate-stat.txt");
@@ -504,9 +642,11 @@ void params_init ()
 	g_params.worker_cleanup_timeout	= 10000000;
 	g_params.epoll_timeout			= 10;
 	g_params.epoll_max_events		= 1000;
-	g_params.parse_every_resp		= 0;
+	g_params.parse_every_http		= 0;
 
 	g_params.target[0]				= 0;
+	g_params.accept_q_size			= 1000;  // TODO Make configurable
+
 	strcpy (g_params.config_path, "/etc/spate.cfg");
 }
 
@@ -588,39 +728,7 @@ Error_t	 params_parse (int argc, char **argv)
 		return ERR_INVALID_CONFIG;
 
 	if (g_params.verbose >= 1)
-		printf ("Starting spate with parameters:\n"
-			"worker count               = %u\n"
-			"connection count           = %u\n"
-			"request count              = %lu\n"
-			"delay (ms)                 = %u\n"
-			"req per connection         = %u\n"
-			"step_time (s)              = %u\n"
-			"start_steps                = %u\n"
-			"req body size              = %u\n"
-			"req method                 = %s\n"
-			"resp buffer size           = %u\n"
-			"verbose                    = %u\n"
-			"sample period (ms)         = %u\n"
-			"worker cleanup timeout (s) = %u\n"
-			"epoll timeout (ms)         = %u\n"
-			"epoll max events           = %u\n"
-			"parse every response       = %u\n\n",
-			g_params.worker_count,
-			g_params.conn_count,
-			g_params.req_count,
-			g_params.delay/1000,
-			g_params.req_per_conn,
-			g_params.step_time/1000000,
-			g_params.start_steps,
-			g_params.req_size,
-			utils_get_http_method_name(g_params.req_method),
-			g_params.resp_buf_size,
-			g_params.verbose,
-			g_params.sample_period/1000,
-			g_params.worker_cleanup_timeout/1000000,
-			g_params.epoll_timeout,
-			g_params.epoll_max_events,
-			g_params.parse_every_resp);
+		print_config();
 
 	return ERR_OK;
 }
