@@ -21,8 +21,10 @@ The main features that distinguish *Spate* from the existing tools like *Apache 
   * Unlimited number of local IP-s and interfaces used for connections to the server, flexible connections configuration using 'Tuples'
   * High number of simultaneous connections (at least hundreds of thousands)
   * Configurable step-by-step load increase on start
+  * Server mode
+  * Support for SPOOL socket interface (https://code.google.com/p/socket-pool/)
+
+Please visit ReleaseNotes page for details about Spate versions.
 
  
-
-
 
