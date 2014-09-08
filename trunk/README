@@ -13,6 +13,12 @@ Spate highlights:
 - many simultaneous connections
 - useful (for my purposes) statistics reports
 
+Starting from version 2.0.0 Spate can work as a simple HTTP server. It is able to listen on one or more sockets, to accept TCP
+connection and to send static HTTP replies of desired size. 
+
+Starting from version 2.0.0  Spate also supports SPOOL - an alternative Linux socket interface that helps increase performance
+up to 25% per core.
+
 
 BUILDING SPATE
 --------------
@@ -28,12 +34,14 @@ The following files will be installed:
 	- spate executable (will be installed by default to /usr/local/bin/)
 	- manual pages (try 'man spate')
 	
-When configuring the project you can add the following C compiler flags:
+When configuring the project you can add the following C compiler definitions (-D):
 	
 _TRACE - when it is defined spate will print on the screen additional information.
 _DEBUG - when it is defined even more information is printed.
 _UTEST - unit tests will be compiled. In this case spate executable will run unit tests and exit. 
          Currently the number of unit tests is limited.
+
+_SPOOL - turn on SPOOL package support. Requires spool.h file accessible via include path. 
 
 
 USING SPATE
