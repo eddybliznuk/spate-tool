@@ -47,7 +47,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_spate_OBJECTS = dispatcher.$(OBJEXT) log.$(OBJEXT) params.$(OBJEXT) \
 	spate.$(OBJEXT) utest.$(OBJEXT) request.$(OBJEXT) \
-	stat.$(OBJEXT) worker.$(OBJEXT) parser.$(OBJEXT) \
+	response.$(OBJEXT) stat.$(OBJEXT) worker.$(OBJEXT) \
+	listener.$(OBJEXT) parser.$(OBJEXT) fifo_ring.$(OBJEXT) \
 	utils.$(OBJEXT)
 spate_OBJECTS = $(am_spate_OBJECTS)
 spate_LDADD = $(LDADD)
@@ -153,7 +154,7 @@ top_srcdir = ..
 # what flags you want to pass to the C compiler & linker
 AM_CFLAGS = --pedantic -Wall -std=c99 -D_POSIX_C_SOURCE
 AM_LDFLAGS = -lpthread
-spate_SOURCES = dispatcher.c log.c params.c spate.c utest.c request.c stat.c worker.c parser.c utils.c 
+spate_SOURCES = dispatcher.c log.c params.c spate.c utest.c request.c response.c stat.c worker.c listener.c parser.c fifo_ring.c utils.c 
 all: all-am
 
 .SUFFIXES:
@@ -167,9 +168,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/Makefile
+	  $(AUTOMAKE) --foreign src/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -236,10 +237,13 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/dispatcher.Po
+include ./$(DEPDIR)/fifo_ring.Po
+include ./$(DEPDIR)/listener.Po
 include ./$(DEPDIR)/log.Po
 include ./$(DEPDIR)/params.Po
 include ./$(DEPDIR)/parser.Po
 include ./$(DEPDIR)/request.Po
+include ./$(DEPDIR)/response.Po
 include ./$(DEPDIR)/spate.Po
 include ./$(DEPDIR)/stat.Po
 include ./$(DEPDIR)/utest.Po

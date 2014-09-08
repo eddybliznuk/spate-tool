@@ -41,13 +41,14 @@ typedef enum RateCounter_
 typedef enum Counter_
 {
 	SOCK_OPEN,
+	SOCK_CLOSE,
 	EPOLL_ERR,
 	SOCK_ERR,
 	SOCK_HUP,
 	BYTES_SENT,
 	BYTES_RCVD,
-	REQ_SENT,
-	RESP_RCVD,
+	MSG_SENT,
+	MSG_RCVD,
 
 	COUNTER_COUNT
 

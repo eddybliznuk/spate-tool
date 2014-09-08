@@ -27,7 +27,7 @@ inline static void init_data(Parser_t* par)
 	par->state			= HTTP_START_LINE;
 	par->header_len 	= 0;
 	par->content_len 	= 0;
-	par->reply_len		= UINT32_MAX;
+	par->msg_len		= UINT32_MAX;
 	par->chunked		= 0;
 
 	par->header_name[0] = 0;
@@ -110,7 +110,7 @@ Error_t parser_parse_http(Parser_t* par, char* buf, int size, uint8_t start)
 				// '/n' met twice and no headers between then => end of the header state
 				par->state 	= HTTP_BODY;
 				par->header_len += cur-buf;
-				par->reply_len 	= par->header_len + par->content_len;
+				par->msg_len 	= par->header_len + par->content_len;
 			}
 
 			break;

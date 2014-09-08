@@ -16,42 +16,32 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-*/
+ */
 
-#ifndef _DISPATCHER_H_
-#define _DISPATCHER_H_
+#ifndef _FIFO_RING_H_
+#define _FIFO_RING_H_
+
+#include "general_defs.h"
 
 #include <pthread.h>
 
-#include "worker.h"
-#include "listener.h"
-
-typedef enum ThreadType_
+typedef struct FifoRing_
 {
-	THREAD_TYPE_LISTENER,
-	THREAD_TYPE_WORKER,
-	THREAD_TYPE_COUNT
+	void**		head;
+	void**		tail;
 
-} ThreadType_e;
+	void**		start;
+	void**		end;
 
-typedef struct Dispatcher_
-{
-	/* Pointer to the array of Worker_t structures */
-	Worker_t*			workers;
+	uint32_t	size;
 
-	/* Pointer to the array of Listener_t structures */
-	Listener_t*			listeners;
+	pthread_mutex_t	mutex;
 
-	uint16_t			thread_count[THREAD_TYPE_COUNT];
-	uint16_t			cur_affinity; /* for distributing affinity from the list among listeners and workers */
+} FifoRing_t;
 
-	pthread_mutex_t		mutex;
-
-} Dispatcher_t ;
+Error_t fifo_ring_init(FifoRing_t* fr, uint32_t size);
+Error_t fifo_ring_add (FifoRing_t* fr, void* data);
+void* fifo_ring_get (FifoRing_t* fr);
 
 
-Error_t dispatcher_init_and_start_workers ();
-void dispatcher_on_finish(ThreadType_e thread_type);
-void dispatcher_close_all();
-
-#endif /* _DISPATCHER_H_ */
+#endif /*  _FIFO_RING_H_ */

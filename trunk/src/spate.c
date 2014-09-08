@@ -33,14 +33,15 @@
 	#include "utest.h"
 #endif
 
-char* version="1.0.0";
+const char* version="2.0.0";
 
 static void sig_handler(int signo)
 {
   if (signo == SIGINT)
   {
 	  	printf("User Interrupt\n\n");
-		stat_print_total_stat();
+	  	dispatcher_close_all();
+	  	sleep(1);
 		exit(0);
   }
 }

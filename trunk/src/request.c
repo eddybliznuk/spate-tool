@@ -39,7 +39,7 @@ Error_t request_create_request(char** req_buf, Url_t* url)
 
 	char* method_name = utils_get_http_method_name (g_params.req_method);
 
-	strcat(*req_buf, method_name);
+	strncat(*req_buf, method_name, buf_len-1);
 	strcat(*req_buf, " ");
 	buf_len -= strlen(method_name+1);
 

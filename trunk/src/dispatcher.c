@@ -4,7 +4,6 @@
     Copyright (C) 2014  Edward Blizniuk (known also as Ed Blake)
 
     This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
@@ -22,6 +21,8 @@
 
 #include "params.h"
 #include "utils.h"
+#include "listener.h"
+#include "worker.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,32 +36,86 @@ static Dispatcher_t d;
  *
  ****************************************************************/
 
-static Error_t create_worker_thread (Worker_t* w)
+static Error_t init_listeners()
 {
-	int res;
+	uint32_t i, j, cur_worker = 0;
+	EggBasket_t eb_w;
 
-	if ((res=pthread_create(&w->thread, NULL, worker_do_work, (void*)w)) != 0)
-		return ERR_CANT_CREATE_THREAD;
+	utils_eggbasket_init(&eb_w, g_params.worker_count, g_params.listener_count);
 
-	 pthread_detach(w->thread);
+	d.thread_count[THREAD_TYPE_LISTENER]	= 0;
+	d.listeners 		= (Listener_t*)malloc(sizeof(Listener_t) * g_params.listener_count);
 
-	 ++d.worker_count;
+	TupleList_t* lt = g_params.listener_list;
+
+	for(i=0; (i<g_params.listener_count) && (lt != NULL); i++)
+	{
+		Listener_t* lis = &d.listeners[i];
+
+		listener_init(lis, i, &lt->t->local_addr, g_params.affinity_list[d.cur_affinity++]);
+
+		if ((pthread_create(&lis->thread, NULL, listener_do_work, (void*)lis)) != 0)
+			return ERR_CANT_CREATE_THREAD;
+
+		pthread_detach(lis->thread);
+		++d.thread_count[THREAD_TYPE_LISTENER];
+
+		for (j=0; (j<utils_eggbasket_get(&eb_w)) && (cur_worker < d.thread_count[THREAD_TYPE_WORKER]); j++)
+		{
+			Error_t rc;
+			rc = listener_add_worker(lis, &d.workers[cur_worker]);
+			if(rc != ERR_OK)
+				return rc;
+
+			d.workers[cur_worker].listener = lis;
+
+			++cur_worker;
+		}
+
+		lt = lt->next;
+	}
 
 	return ERR_OK;
 }
 
-/****************************************************************
- *
- *                   Interface Functions
- *
- ****************************************************************/
-
-Error_t dispatcher_init_and_start_workers ()
+static Error_t init_server_workers()
 {
-	Error_t		rc;
+	Error_t rc;
+	uint32_t i;
 
-	d.worker_count	= 0;
-	d.workers 		= (Worker_t*)malloc(sizeof(Worker_t) * g_params.worker_count);
+	d.thread_count[THREAD_TYPE_WORKER]	= 0;
+	d.workers = (Worker_t*)malloc(sizeof(Worker_t) * g_params.worker_count);
+
+	stat_start_time_count();
+
+	for(i=0; i<g_params.worker_count; i++)
+	{
+		Worker_t* w = &d.workers[i];
+
+		if ((rc = worker_init_as_server(w, i, g_params.affinity_list[d.cur_affinity++])) != ERR_OK)
+		{
+			free(d.workers);
+			return rc;
+		}
+
+		if ((pthread_create(&w->thread, NULL, worker_do_work, (void*)w)) != 0)
+			return ERR_CANT_CREATE_THREAD;
+
+		 pthread_detach(w->thread);
+
+		 ++d.thread_count[THREAD_TYPE_WORKER];
+	}
+
+	return ERR_OK;
+}
+
+static Error_t init_client_workers()
+{
+	Error_t rc;
+	uint32_t i;
+
+	d.thread_count[THREAD_TYPE_WORKER]	= 0;
+	d.workers	= (Worker_t*)malloc(sizeof(Worker_t) * g_params.worker_count);
 
 	EggBasket_t eb_con, eb_req, eb_tuple;
 	utils_eggbasket_init(&eb_con, g_params.conn_count, g_params.worker_count);
@@ -69,11 +124,13 @@ Error_t dispatcher_init_and_start_workers ()
 
 	TupleList_t* tl = g_params.tuple_list;
 
-	uint32_t i;
-
 	for(i=0; i<g_params.worker_count; i++)
 	{
-		if ((rc = worker_init(&d.workers[i], i, utils_eggbasket_get(&eb_con), utils_eggbasket_get(&eb_req), g_params.affinity_list[i])) != ERR_OK)
+		if ((rc = worker_init_as_client (&d.workers[i],
+										 i,
+										 utils_eggbasket_get(&eb_con),
+										 utils_eggbasket_get(&eb_req),
+										 g_params.affinity_list[i])) != ERR_OK)
 		{
 			free(d.workers);
 			return rc;
@@ -105,8 +162,6 @@ Error_t dispatcher_init_and_start_workers ()
 		}
 	}
 
-	pthread_mutex_init(&d.mutex, NULL);
-
 	/* We create worker threads and start all workers separately
 	 * trying to achieve quasi-simultaneous start
 	 */
@@ -115,24 +170,62 @@ Error_t dispatcher_init_and_start_workers ()
 
 	for(i=0; i<g_params.worker_count; i++)
 	{
-		create_worker_thread (&d.workers[i]);
-	}
+		Worker_t* w = &d.workers[i];
 
-	fprintf(stdout, "Starting the test...\n\n");
+		if ((pthread_create(&w->thread, NULL, worker_do_work, (void*)w)) != 0)
+			return ERR_CANT_CREATE_THREAD;
+
+		 pthread_detach(w->thread);
+
+		 ++d.thread_count[THREAD_TYPE_WORKER];
+	}
 
 	return ERR_OK;
 }
 
-void dispatcher_on_finish()
+/****************************************************************
+ *
+ *                   Interface Functions
+ *
+ ****************************************************************/
+
+Error_t dispatcher_init_and_start_workers ()
+{
+	Error_t	rc;
+
+	pthread_mutex_init(&d.mutex, NULL);
+
+	d.cur_affinity = 0;
+
+	if (g_params.mode == SPATE_MODE_SERVER)
+	{
+		if ((rc = init_server_workers()) != ERR_OK)
+			return rc;
+
+		rc =  init_listeners();
+	}
+	else
+		rc = init_client_workers();
+
+	if (rc == ERR_OK)
+		fprintf(stdout, "\nStarting the test...\n\n");
+
+	return rc;
+}
+
+void dispatcher_on_finish(ThreadType_e thread_type)
 {
 	pthread_mutex_lock(&d.mutex);
 
-	if (--d.worker_count == 0 )
+	--d.thread_count[thread_type];
+
+	if (d.thread_count[THREAD_TYPE_LISTENER] == 0 &&
+		d.thread_count[THREAD_TYPE_WORKER] == 0)
 	{
 		stat_print_total_stat();
 
 #ifdef _TRACE
-		printf ("DISPATCHER : All workers finished\n");
+		printf ("DISPATCHER : All threads finished\n");
 #endif
 		exit (0);
 	}
@@ -140,4 +233,20 @@ void dispatcher_on_finish()
 	pthread_mutex_unlock(&d.mutex);
 }
 
+void dispatcher_close_all()
+{
+	int i;
+
+	for(i=0; i<	d.thread_count[THREAD_TYPE_WORKER]; i++)
+	{
+		worker_close(&d.workers[i]);
+	}
+
+	sleep(1);
+
+	for(i=0; i<d.thread_count[THREAD_TYPE_LISTENER]; i++)
+	{
+		listener_close(&d.listeners[i]);
+	}
+}
 
