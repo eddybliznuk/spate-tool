@@ -1,0 +1,165 @@
+# Mode parameter defines whether Spate works in client or in server mode.
+# The possible values for this parameter are 'client' or 'server' (actually any parameter
+# value different from 'server' switches Spool to the client mode). 
+# Default value : client
+# Mode = client
+
+# Tuple defines a connection between Spate and the server. The value of this parameter consists of two
+# parts divided by comma. The first part represents the local interface from which connection to the server
+# is established. It should be an existing local IP address. The second part of the value is the remote URL
+# in standard HTTP URL notation : [http://]host[:port]/[path]. Spate tries to resolve host names on initialization.
+# The tuples are divided between workers as evenly as possible. The tuples assigned to a single worker are 
+# divided between connection according to round robin.
+# Relevant for the client mode only.
+# NOTE. If at least one Tuple parameter is defined the'-t' command line parameter is ignored.
+# 
+Tuple = 2.2.2.100, www.fargo.com:80 
+Tuple = 127.0.0.1, www.fargo.com:80
+
+# In server mode this parameter defines IP addresses and ports on which Spate listens for incoming
+# connections. The <ip_address>:<port> syntax is used. The IP address can be 0.0.0.0 in case Spate
+# should listen on any available IP address.
+# A separate Listener thread is created for every such Listener.
+# Relevant for the client mode only
+#
+# Listener = 0.0.0.0:80
+
+# Number of worker threads. It is recommended to set up this parameter equal
+# to the number of CPU cores for better performance.
+# You also can use WorkerAffinity parameter to bind worker threads to particular cores.
+# Relevant for both client and server modes.
+# Default value : 1
+#
+# Workers = 1
+
+# Number of TCP connections established with the server. The connections are distributed between 
+# workers as equally as possible. For example if you defined 3 workers and 10 connections, the 
+# first worker will establish 4 connections and two others 2 connections each.
+# Relevant for the client mode only.
+# Default value : 1
+#
+ Connections = 1000 
+
+# Number of HTTP request to be sent during the test. The requests are distributed between 
+# connections as equally as possible.
+# Relevant for the client mode only.
+# Default value : 1
+#
+ Requests = 1000000
+
+# In the client mode: time that should pass from reception of a reply to sending the next requests in a connection
+# in milliseconds. If it is zero, the request is sent as soon as possible.
+# In the server mode: time that should pass from reception of a request to sending the reply. 
+# If it is zero, the reply is sent as soon as possible.
+# Default value : 0
+#
+# Delay = 0
+
+# Number of requests to be sent via a single TCP connection. After this number is reached
+# the connection is closed and a new connection is established.
+# If it is zero - spate opens all connections in the beginning and never closes them.
+# Relevant for the client mode only.
+# Default value : 0
+#
+# ReqPerConnection = 0
+
+# The Steps parameter enables you to increase load step by step. The value of this parameter consists
+# of two numbers divided by a colon. The first number defines the duration of a step in seconds,
+# the second one  - the number of steps. Spate tries to distribute the connection number defined 
+# by Connections parameter between the steps as equally as possible. 
+# If it is empty or not defined spate establishes all connection in the very beginning.
+# Relevant for the client mode only.
+# Default value : empty
+#
+# Steps = 1,10
+
+# Size of request body in bytes. The body will be filled with 'A' character.
+# Relevant for the client mode only.
+# Default value : 0
+#
+# ReqBodySize = 0
+
+# Size of response body in bytes. The body will be filled with 'A' character.
+# Relevant for the server mode only.
+# Default value : 0
+#
+# RespBodySize = 0
+
+
+# HTTP method used in requests. The following methods are supported: GET, POST, PUT, HEAD
+# Relevant for the client mode only.
+# Default value : GET
+#
+# ReqMethod = GET
+
+# Size of the memory buffer to which spate reads data from the socket (per socket). If you define small buffer - 
+# the number of read() system calls increases, if the buffer is too large spate consumes considerable
+# amount of the RAM. 
+# Relevant for both client and server modes.
+# Default value : 10k
+#
+# ReadBufferSize = 10240
+
+# Currently only levels 0 and 1 are supported. If the verbose level is 1 spate informs user 
+# about the number of requests sent approximately every second.
+# Relevant for both client and server modes.
+# Default value : 0
+#
+# VerboseLevel = 0
+
+# Spate creates statistics samples periodically and saves them at a csv file.  
+# SamplePeriod defines period of sampling in milliseconds. The minimal value is limited by 100 ms
+# however it is not recommended to set this value below 1 second.
+# If SamplePeriod is zero no samples are saved.
+# Relevant for both client and server modes.
+# Default value : 1000 (1 second)
+#
+# SamplePeriod = 1000
+
+# Path to the csv file where the statistics samples are saved.
+# Relevant for both client and server modes.
+# Default value = spate-stat.txt
+#
+# SampleFilePath = spate-stat.txt
+
+# An advanced user can assign affinity mask to every worker thread. The value of WorkerAffinity parameter
+# is a space-separated list of core bit masks per worker. If the number of such bit masks is smaller than the
+# number of the workers the rest of the workers will be launched without affinity. The bit mask is represented
+# by '0' and '1' characters, all other characters are just ignored. The rightmost character in the mask 
+# represents the core #0. For example, if you want to bind the first worker to the core #1 and the second 
+# one to the core #2 the parameter should be defined as follows: 
+#     WorkerAffinity = 0010 0100
+# If it is empty or not defined no affinity is assigned to the workers.
+# Relevant for both client and server modes.
+# Default value = empty
+#
+# WorkerAffinity = 
+
+# When a worker has sent all the requests planned it wait for some time while all the server
+# responses arrive. You can define timeout for this waiting period (in seconds). When it is expired, the worker
+# thread is closed even though not all responses are received.
+# Relevant for the client mode only.
+# Default value : 10
+#
+# WorkerCleanupTimeout = 10
+
+# An advanced user can define epoll parameters that can influence performance in some cases.
+# It is not recommended to change these parameters.
+# If Spate is compiled with SPOOL support these parameters are used only by the epoll that
+# check availability of pending connections in the server mode.
+# Default values : epoll timeout 10 (milliseconds), epoll max events : 1000
+#
+# EpollTimeout = 10
+# EpollMaxEvents = 1000
+
+
+# In client mode we assume that the server always sends the same responses to the same requests
+# Therefore we parse the response just once per connection. In case the server sends dynamic replies
+# they differ by size. In this case we have to parse every response.
+# The valid values of this parameters are 0 (parse only the first response at a connection) and
+# 1 (parse every response).
+# Default value : 0
+#
+# ParseEveryHttp = 1
+
+
